@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Nursery App</title>
+<link rel="manifest" href="manifest.webmanifest">
+<meta name="theme-color" content="#14532D">
+<link rel="icon" type="image/png" sizes="32x32" href="favicon-32.png">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="NurseryApp">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<style>
+  html, body { margin: 0; height: 100%; overflow: hidden; background: #14532D; font-family: system-ui, -apple-system, 'Segoe UI', Roboto, Arial, sans-serif; }
+  /* safe-area iPhone: bagian atas (status bar / poni) diberi warna tema, aplikasi mulai di bawahnya */
+  #app { position: fixed; top: env(safe-area-inset-top, 0px); left: 0; right: 0; bottom: 0; width: 100%; height: calc(100% - env(safe-area-inset-top, 0px)); border: 0; background: #F4F8F2; }
+  .lapis { position: fixed; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 14px; background: #F4F8F2; color: #14532D; text-align: center; padding: 24px; padding-top: calc(24px + env(safe-area-inset-top, 0px)); padding-bottom: calc(24px + env(safe-area-inset-bottom, 0px)); z-index: 5; }
+  .lapis[hidden] { display: none; }
+  .lapis img { width: 96px; height: 96px; border-radius: 22px; box-shadow: 0 10px 28px rgba(20,83,45,.25); }
+  .lapis h1 { margin: 0; font-size: 20px; }
+  .lapis p { margin: 0; color: #4b6b55; font-size: 14px; max-width: 320px; line-height: 1.45; }
+  .putar { width: 26px; height: 26px; border: 3px solid #cfe3c6; border-top-color: #2f7d4f; border-radius: 50%; animation: p .8s linear infinite; }
+  @keyframes p { to { transform: rotate(360deg); } }
+  .tombol { border: 0; border-radius: 12px; padding: 12px 20px; background: #2f7d4f; color: #fff; font-weight: 700; font-size: 15px; min-height: 46px; cursor: pointer; }
+  #lambat { display: none; }
+</style>
+</head>
+<body>
+<iframe id="app" title="Nursery App" allow="camera; microphone; clipboard-read; clipboard-write; fullscreen; geolocation" allowfullscreen></iframe>
+
+<div id="memuat" class="lapis">
+  <img src="icon-192.png" alt="">
+  <h1>Membuka Nursery App...</h1>
+  <div class="putar" aria-hidden="true"></div>
+  <p id="lambat">Masih memuat. Bila terlalu lama, periksa sinyal atau ketuk Muat ulang.<br><br><button class="tombol" onclick="muat(true)">Muat ulang</button></p>
+</div>
+
+<div id="offline" class="lapis" hidden>
+  <img src="icon-192.png" alt="">
+  <h1>Tidak ada koneksi</h1>
+  <p>Nursery App memerlukan internet untuk mengambil data terbaru. Aplikasi akan terbuka otomatis saat koneksi kembali.</p>
+  <button class="tombol" onclick="muat(true)">Coba lagi</button>
+</div>
+
+<div id="salah" class="lapis" hidden>
+  <img src="icon-192.png" alt="">
+  <h1>Alamat aplikasi belum diatur</h1>
+  <p>Buka file <b>index.html</b> di repository ini, cari baris <b>APP_URL</b>, lalu ganti dengan URL Web App Apps Script Anda yang berakhiran <b>/exec</b>.</p>
+</div>
+
+<script>
+/* =====================================================================
+ *  GANTI DI SINI SAJA: URL Web App Apps Script Anda (berakhiran /exec)
+ *  Didapat dari Apps Script: Terapkan > Kelola deployment > salin "URL aplikasi web".
+ *  Jangan membuat deployment baru saat memperbarui (pakai Edit > Versi baru) agar URL ini tetap sama.
+ * ===================================================================== */
+const APP_URL = 'https://script.google.com/macros/s/GANTI_DENGAN_ID_DEPLOYMENT/exec';
+
+(function () {
+  var frame = document.getElementById('app'), memuat = document.getElementById('memuat'), offline = document.getElementById('offline'), lambat = document.getElementById('lambat');
+  var tunda = null, siap = false, penanya = null;   /* penanya = jendela aplikasi (iframe googleusercontent di dalam halaman Google) */
+  var ios = /iPad|iPhone|iPod/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+  function standalone() { return (window.matchMedia && window.matchMedia('(display-mode: standalone)').matches) || navigator.standalone === true; }
+  function info() { return { type: 'es-info', installable: !!tunda, standalone: standalone(), ios: ios }; }
+  function kirimInfo(ke) { try { (ke || penanya || frame.contentWindow).postMessage(info(), '*'); } catch (e) {} }
+  /* Hanya menerima pesan dari aplikasi Apps Script */
+  function asalSah(o) { try { var h = new URL(o).hostname; return h === 'script.google.com' || /(^|\.)googleusercontent\.com$/.test(h); } catch (e) { return false; } }
+
+  window.addEventListener('beforeinstallprompt', function (e) { e.preventDefault(); tunda = e; kirimInfo(); });
+  window.addEventListener('appinstalled', function () { tunda = null; kirimInfo(); });
+  window.addEventListener('message', function (e) {
+    if (!asalSah(e.origin)) return;
+    var t = e.data && e.data.type;
+    if (e.source) penanya = e.source;
+    if (t === 'es-tanya') kirimInfo(e.source);
+    else if (t === 'es-install') {
+      if (!tunda) return kirimInfo(e.source);
+      var p = tunda; tunda = null; p.prompt();
+      Promise.resolve(p.userChoice).then(function () { kirimInfo(e.source); }, function () { kirimInfo(e.source); });
+    }
+    else if (t === 'es-reload') muat(true);
+  });
+
+  window.muat = function (paksa) {
+    if (APP_URL.indexOf('GANTI_DENGAN') > -1) { memuat.hidden = true; document.getElementById('salah').hidden = false; return; }
+    if (!navigator.onLine) { memuat.hidden = true; offline.hidden = false; return; }
+    offline.hidden = true; memuat.hidden = false; lambat.style.display = 'none'; siap = false;
+    frame.src = APP_URL + (paksa ? (APP_URL.indexOf('?') > -1 ? '&' : '?') + 'r=' + Date.now() : '');
+    setTimeout(function () { if (!siap) lambat.style.display = 'block'; }, 20000);
+  };
+  frame.addEventListener('load', function () { if (!frame.src) return; siap = true; memuat.hidden = true; });
+  window.addEventListener('offline', function () { if (!siap) { memuat.hidden = true; offline.hidden = false; } });
+  window.addEventListener('online', function () { if (!offline.hidden) window.muat(true); });
+
+  if ('serviceWorker' in navigator) {
+    var adaPengendali = !!navigator.serviceWorker.controller, muatUlang = false;
+    navigator.serviceWorker.register('sw.js').catch(function () {});
+    /* VERSI di sw.js naik -> service worker baru aktif -> halaman dimuat ulang sekali */
+    navigator.serviceWorker.addEventListener('controllerchange', function () { if (!adaPengendali || muatUlang) { adaPengendali = true; return; } muatUlang = true; location.reload(); });
+  }
+  window.muat(false);
+})();
+</script>
+</body>
+</html>
