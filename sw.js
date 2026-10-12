@@ -2,7 +2,7 @@
  * HANYA menyimpan cangkang pembungkus (file di repository ini). Aplikasi Apps Script (script.google.com /
  * googleusercontent.com) TIDAK PERNAH disentuh/di-cache, sehingga selalu tampil versi deployment terbaru.
  * Bila file pembungkus diubah, naikkan VERSI (mis. nurseryapp-pwa-v2) agar perangkat memperbarui diri. */
-const VERSI = 'nurseryapp-pwa-v1';
+const VERSI = 'nurseryapp-pwa-v2';
 const CANGKANG = ['./', './index.html', './manifest.webmanifest', './icon-192.png', './icon-512.png', './icon-maskable-512.png', './apple-touch-icon.png', './favicon-32.png'];
 
 self.addEventListener('install', e => {

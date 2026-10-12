@@ -56,14 +56,14 @@
  *  Didapat dari Apps Script: Terapkan > Kelola deployment > salin "URL aplikasi web".
  *  Jangan membuat deployment baru saat memperbarui (pakai Edit > Versi baru) agar URL ini tetap sama.
  * ===================================================================== */
-const APP_URL = 'https://script.google.com/macros/s/AKfycbzccgczTeyxgzb7kOeXRV0u-ZCPSA1FGikRSe_75DeklBzeqZQs4q5qE8VHeF02eCajDw/exec';
+const APP_URL = 'https://script.google.com/macros/s/GANTI_DENGAN_ID_DEPLOYMENT/exec';
 
 (function () {
   var frame = document.getElementById('app'), memuat = document.getElementById('memuat'), offline = document.getElementById('offline'), lambat = document.getElementById('lambat');
   var tunda = null, siap = false, penanya = null;   /* penanya = jendela aplikasi (iframe googleusercontent di dalam halaman Google) */
   var ios = /iPad|iPhone|iPod/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
   function standalone() { return (window.matchMedia && window.matchMedia('(display-mode: standalone)').matches) || navigator.standalone === true; }
-  function info() { return { type: 'es-info', installable: !!tunda, standalone: standalone(), ios: ios }; }
+  function info() { return { type: 'es-info', installable: !!tunda, standalone: standalone(), ios: ios, alamat: location.origin + location.pathname }; }
   function kirimInfo(ke) { try { (ke || penanya || frame.contentWindow).postMessage(info(), '*'); } catch (e) {} }
   /* Hanya menerima pesan dari aplikasi Apps Script */
   function asalSah(o) { try { var h = new URL(o).hostname; return h === 'script.google.com' || /(^|\.)googleusercontent\.com$/.test(h); } catch (e) { return false; } }
@@ -83,11 +83,20 @@ const APP_URL = 'https://script.google.com/macros/s/AKfycbzccgczTeyxgzb7kOeXRV0u
     else if (t === 'es-reload') muat(true);
   });
 
+  /* Parameter QR (?menu=..&k=.. atau ?bibit=..) diteruskan ke aplikasi. Hanya nama & pola yang dikenal; sisanya dibuang.
+     Keamanan TETAP diperiksa di server (Code.gs) - penyaringan di sini hanya agar alamat rapi. */
+  var POLA = { menu: /^(bibit|lapangan|workshop|gudang)$/, k: /^[A-Za-z0-9_-]{8,80}$/, bibit: /^[a-z0-9-]{1,60}$/ };
+  function paramQR() {
+    var q = new URLSearchParams(location.search), out = [];
+    Object.keys(POLA).forEach(function (n) { var v = q.get(n); if (v && POLA[n].test(v)) out.push(n + '=' + encodeURIComponent(v)); });
+    return out;
+  }
   window.muat = function (paksa) {
     if (APP_URL.indexOf('GANTI_DENGAN') > -1) { memuat.hidden = true; document.getElementById('salah').hidden = false; return; }
     if (!navigator.onLine) { memuat.hidden = true; offline.hidden = false; return; }
     offline.hidden = true; memuat.hidden = false; lambat.style.display = 'none'; siap = false;
-    frame.src = APP_URL + (paksa ? (APP_URL.indexOf('?') > -1 ? '&' : '?') + 'r=' + Date.now() : '');
+    var p = paramQR(); if (paksa) p.push('r=' + Date.now());   /* r= mencegah browser memakai halaman lama dari cache */
+    frame.src = APP_URL + (p.length ? (APP_URL.indexOf('?') > -1 ? '&' : '?') + p.join('&') : '');
     setTimeout(function () { if (!siap) lambat.style.display = 'block'; }, 20000);
   };
   frame.addEventListener('load', function () { if (!frame.src) return; siap = true; memuat.hidden = true; });
